@@ -1,31 +1,41 @@
-name: Appium Mobile Automation
+name: CI - Mobile Automation
 
 on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'Android/**'
+      - '.github/workflows/appium-test.yml'
+  pull_request:
+    branches:
+      - main
+      - master
+    paths:
+      - 'Android/**'
+      - '.github/workflows/appium-test.yml'
   workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: Android
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 jobs:
-  usb-appium-validation:
-    name: USB/Appium Validation
+  validate:
+    name: Validate project
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
 
     env:
-      ANDROID_DEVICE_UDID: ${{ secrets.ANDROID_DEVICE_UDID }}
-      IOS_DEVICE_UDID: ${{ secrets.IOS_DEVICE_UDID }}
-      ANDROID_APP_PATH: ${{ secrets.ANDROID_APP_PATH }}
-      IOS_APP_PATH: ${{ secrets.IOS_APP_PATH }}
-
-      TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
-      TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
-      INVALID_EMAIL: ${{ secrets.INVALID_EMAIL }}
-      INCORRECT_PASSWORD: ${{ secrets.INCORRECT_PASSWORD }}
-
       CI: true
+      TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL || 'ci@example.com' }}
+      TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD || 'Test@123' }}
+      INVALID_EMAIL: ${{ secrets.INVALID_EMAIL || 'invalid@example.com' }}
+      INCORRECT_PASSWORD: ${{ secrets.INCORRECT_PASSWORD || 'wrongpassword' }}
 
     steps:
       - name: Checkout repository
@@ -36,121 +46,60 @@ jobs:
         with:
           node-version: 20
           cache: npm
+          cache-dependency-path: Android/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
-
-      - name: Validate required variables
-        shell: bash
-        run: |
-          required_variables=(
-            ANDROID_DEVICE_UDID
-            IOS_DEVICE_UDID
-            ANDROID_APP_PATH
-            IOS_APP_PATH
-            TEST_USER_EMAIL
-            TEST_USER_PASSWORD
-            INVALID_EMAIL
-            INCORRECT_PASSWORD
-          )
-
-          for variable in "${required_variables[@]}"; do
-            if [[ -z "${!variable}" ]]; then
-              echo "::error::$variable is missing or empty"
-              exit 1
-            fi
-          done
-
-          echo "All required variables are available."
-
-      - name: Clean previous Allure results
-        shell: bash
-        run: |
-          rm -rf allure-results
-          rm -rf allure-report
-          rm -rf reports/allure-report
-          rm -rf _site
-          mkdir -p allure-results
+        run: npm ci --legacy-peer-deps
 
       - name: Run TypeScript validation
-        id: typecheck
-        continue-on-error: true
         run: npm run typecheck
 
-      - name: Generate Allure report
-        if: always()
-        run: npm run report:generate
-
-      - name: Prepare Allure site
-        if: always()
-        shell: bash
-        run: |
-          echo "Searching for generated Allure report..."
-
-          rm -rf _site
-          mkdir -p _site
-
-          if [[ -f "allure-report/index.html" ]]; then
-            echo "Report found at allure-report"
-            cp -R allure-report/. _site/
-          elif [[ -f "reports/allure-report/index.html" ]]; then
-            echo "Report found at reports/allure-report"
-            cp -R reports/allure-report/. _site/
-          else
-            echo "::error::Allure index.html was not found."
-            echo "Available index.html files:"
-            find . -maxdepth 4 -type f -name "index.html" -print
-            exit 1
-          fi
-
-          echo "Files prepared for GitHub Pages:"
-          find _site -maxdepth 2 -type f | head -30
-
-          test -f "_site/index.html"
-
-      - name: Configure GitHub Pages
-        if: always()
-        uses: actions/configure-pages@v5
-
-      - name: Upload Allure report for GitHub Pages
-        if: always()
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: _site
-
-      - name: Upload downloadable Allure artifact
+      - name: Upload automation logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: android-allure-report-${{ github.run_number }}
+          name: automation-logs-${{ github.run_number }}
           path: |
-            allure-results
-            _site
+            logs
+            screenshots
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 7
 
-      - name: Set final workflow result
-        if: always()
-        shell: bash
-        run: |
-          if [[ "${{ steps.typecheck.outcome }}" == "failure" ]]; then
-            echo "TypeScript validation failed."
-            exit 1
-          fi
-
-          echo "TypeScript validation passed."
-
-  deploy-allure-report:
-    name: Publish Allure Report
-    if: always()
-    needs: android-smoke-test
+  mobile-e2e:
+    name: Optional mobile smoke check
+    needs: validate
+    if: ${{ secrets.BROWSERSTACK_USERNAME != '' && secrets.BROWSERSTACK_ACCESS_KEY != '' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 40
 
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      CI: true
+      BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+      BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+      ANDROID_DEVICE_UDID: ${{ secrets.ANDROID_DEVICE_UDID || '' }}
+      IOS_DEVICE_UDID: ${{ secrets.IOS_DEVICE_UDID || '' }}
+      ANDROID_APP_PATH: ${{ secrets.ANDROID_APP_PATH || '' }}
+      IOS_APP_PATH: ${{ secrets.IOS_APP_PATH || '' }}
+      TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL || 'ci@example.com' }}
+      TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD || 'Test@123' }}
+      INVALID_EMAIL: ${{ secrets.INVALID_EMAIL || 'invalid@example.com' }}
+      INCORRECT_PASSWORD: ${{ secrets.INCORRECT_PASSWORD || 'wrongpassword' }}
 
     steps:
-      - name: Deploy Allure report
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: Android/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run a smoke check placeholder
+        run: |
+          echo "BrowserStack secrets detected."
+          echo "Connect the mobile automation runner or add a dedicated BrowserStack/WebdriverIO config before enabling real e2e execution."

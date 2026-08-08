@@ -20,8 +20,44 @@ Cross-platform mobile automation framework for Android and iOS using **Webdriver
 - **Xcode** (for iOS testing)
 - **Appium** 3.x (`npm install -g appium`)
 - **scrcpy** (for video recording)
+- **XCUITest driver** for iOS (`npx appium driver install xcuitest`)
 
 ## Setup
+
+### iPhone 15 Pro Max USB setup (required for iOS automation)
+
+> Important: local iOS automation with Appium/XCUITest requires a Mac computer. Windows cannot run XCUITest locally against an iPhone.
+
+If you want to connect your iPhone 15 Pro Max for USB automation, follow these steps on the Mac that will run Appium:
+
+1. Install Xcode from the App Store and open it once to accept the license.
+2. Install the Xcode command line tools:
+   ```bash
+   xcode-select --install
+   ```
+3. On the iPhone, enable Developer Mode:
+   - Settings > Privacy & Security > Developer Mode
+   - Turn it on and restart the phone
+4. Connect the iPhone to the Mac with a cable.
+5. When prompted on the phone, tap Trust This Computer.
+6. If the phone is not showing up to Xcode/Appium, open Xcode and go to Window > Devices and Simulators to confirm it is recognized.
+7. Make sure the device is listed by Xcode:
+   ```bash
+   xcrun xctrace list devices
+   ```
+8. Install Appium and the iOS driver on the Mac:
+   ```bash
+   npm install -g appium
+   npx appium driver install xcuitest
+   ```
+9. If you plan to install an app manually, use a signed `.app` or `.ipa` bundle that is compatible with your device.
+10. Fill the values in `.env`:
+   ```env
+   IOS_DEVICE_UDID=your_device_udid_here
+   IOS_APP_PATH=/path/to/your/app.app
+   ```
+
+If you are still on Windows, the practical option is to use a Mac or a cloud service such as BrowserStack for real iPhone execution.
 
 ### 1. Install Dependencies
 
@@ -241,7 +277,24 @@ git push origin feature/your-feature-name
 
 ## CI/CD
 
-Tests run automatically on GitHub Actions. Check `.github/workflows/appium-test.yml` for configuration.
+Tests run automatically on GitHub Actions. Check `.github/workflows/appium-test.yml` for the pipeline configuration.
+
+### GitHub Actions secrets
+
+Add these secrets in your repository settings under Settings > Secrets and variables > Actions:
+
+- `ANDROID_DEVICE_UDID`
+- `IOS_DEVICE_UDID`
+- `ANDROID_APP_PATH`
+- `IOS_APP_PATH`
+- `TEST_USER_EMAIL`
+- `TEST_USER_PASSWORD`
+- `INVALID_EMAIL`
+- `INCORRECT_PASSWORD`
+- `BROWSERSTACK_USERNAME` (optional, for remote mobile execution)
+- `BROWSERSTACK_ACCESS_KEY` (optional, for remote mobile execution)
+
+The workflow runs the TypeScript validation on every push/PR. The optional mobile smoke job is enabled only when BrowserStack credentials are provided.
 
 ## Troubleshooting
 

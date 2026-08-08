@@ -5,6 +5,7 @@
   "description": "Cross-platform mobile automation framework for Android and iOS using WebdriverIO, Appium via USB, Cucumber, and Allure.",
   "type": "module",
   "scripts": {
+    "postinstall": "npx appium driver install xcuitest",
     "wdio": "wdio run ./wdio.conf.ts",
     "android:local": "wdio run ./config/wdio.android.local.conf.ts",
     "android:usb": "wdio run ./config/wdio.android.usb.conf.ts",
@@ -62,6 +63,7 @@
     "@wdio/visual-service": "^10.1.0",
     "allure-commandline": "^2.43.0",
     "appium-uiautomator2-driver": "^8.1.1",
+    "appium-xcuitest-driver": "^9.0.0",
     "dotenv": "^17.4.2",
     "expect-webdriverio": "^5.7.0",
     "tsx": "^4.23.1",

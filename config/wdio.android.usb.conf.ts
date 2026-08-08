@@ -79,10 +79,6 @@ export const config: WebdriverIO.Config = {
             'appium:noReset': false,
             'appium:fullReset': false,
             'appium:newCommandTimeout': 120,
-            'appium:recordVideo': true,
-            'appium:videoType': 'mp4',
-            'appium:videoSize': '1080x1920',
-            'appium:videoFps': 30,
         },
     ],
 
