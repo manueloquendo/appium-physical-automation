@@ -5,21 +5,15 @@ on:
     branches:
       - main
       - master
-    paths:
-      - 'Android/**'
-      - '.github/workflows/appium-test.yml'
   pull_request:
     branches:
       - main
       - master
-    paths:
-      - 'Android/**'
-      - '.github/workflows/appium-test.yml'
   workflow_dispatch:
 
 defaults:
   run:
-    working-directory: Android
+    working-directory: .
 
 permissions:
   contents: read
@@ -46,7 +40,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: Android/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
@@ -94,7 +88,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: Android/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
