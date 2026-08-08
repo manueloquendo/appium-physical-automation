@@ -62,7 +62,6 @@ jobs:
   mobile-e2e:
     name: Optional mobile smoke check
     needs: validate
-    if: ${{ secrets.BROWSERSTACK_USERNAME != '' && secrets.BROWSERSTACK_ACCESS_KEY != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
 
@@ -80,10 +79,24 @@ jobs:
       INCORRECT_PASSWORD: ${{ secrets.INCORRECT_PASSWORD || 'wrongpassword' }}
 
     steps:
+      - name: Gate BrowserStack execution
+        id: gate
+        shell: bash
+        run: |
+          if [[ -z "${BROWSERSTACK_USERNAME}" || -z "${BROWSERSTACK_ACCESS_KEY}" ]]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "BrowserStack secrets are not configured. Skipping mobile-e2e job steps."
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "BrowserStack secrets detected."
+          fi
+
       - name: Checkout repository
+        if: steps.gate.outputs.enabled == 'true'
         uses: actions/checkout@v4
 
       - name: Configure Node.js
+        if: steps.gate.outputs.enabled == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -91,9 +104,11 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Install dependencies
+        if: steps.gate.outputs.enabled == 'true'
         run: npm install --legacy-peer-deps --ignore-scripts
 
       - name: Run a smoke check placeholder
+        if: steps.gate.outputs.enabled == 'true'
         run: |
           echo "BrowserStack secrets detected."
           echo "Connect the mobile automation runner or add a dedicated BrowserStack/WebdriverIO config before enabling real e2e execution."
