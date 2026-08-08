@@ -1,4 +1,4 @@
-name: Appium Tests with Video (Manual USB)
+name: Appium Tests with Video (Disabled)
 
 on:
   workflow_dispatch:
@@ -7,92 +7,11 @@ permissions:
   contents: read
 
 jobs:
-  test-android-usb:
-    name: Android USB Tests with Video Recording
-    if: ${{ secrets.ANDROID_DEVICE_UDID != '' }}
-    runs-on: [self-hosted, windows]
-    timeout-minutes: 45
-
-    env:
-      ANDROID_DEVICE_UDID: ${{ secrets.ANDROID_DEVICE_UDID }}
-      TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
-      TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
-      INVALID_EMAIL: ${{ secrets.INVALID_EMAIL }}
-      INCORRECT_PASSWORD: ${{ secrets.INCORRECT_PASSWORD }}
-
+  disabled:
+    name: Disabled until self-hosted runner is configured
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
-
-      - name: Start Appium Server
-        shell: pwsh
-        run: Start-Process appium -ArgumentList '--port','4723','--relaxed-security'
-
-      - name: Run tests with video recording
-        shell: pwsh
+      - name: Disabled workflow notice
         run: |
-          $spec = "./test/features/authentication/blank-fields-validation.feature"
-          & .\run-test-with-video.ps1 -SpecFile $spec -VideoDir "./videos"
-
-      - name: Generate Allure Report if results exist
-        shell: pwsh
-        run: |
-          if (Test-Path "reports/allure-results") {
-            npm run report:generate
-          } else {
-            Write-Host "No Allure results found; skipping report generation."
-          }
-
-      - name: Upload Allure Results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: allure-results-${{ github.run_number }}
-          path: reports/allure-results/
-          if-no-files-found: warn
-          retention-days: 14
-
-      - name: Upload Allure Report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: allure-report-${{ github.run_number }}
-          path: reports/allure-report/
-          if-no-files-found: warn
-          retention-days: 14
-
-      - name: Upload Test Videos
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-videos-${{ github.run_number }}
-          path: videos/
-          if-no-files-found: warn
-          retention-days: 14
-
-      - name: Upload Screenshots
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: screenshots-${{ github.run_number }}
-          path: screenshots/
-          if-no-files-found: warn
-          retention-days: 14
-
-      - name: Upload Logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: logs-${{ github.run_number }}
-          path: logs/
-          if-no-files-found: warn
-          retention-days: 14
+          echo "This workflow is temporarily disabled."
+          echo "Set up a self-hosted Windows runner with an Android device to enable USB video runs."
