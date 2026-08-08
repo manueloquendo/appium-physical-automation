@@ -1,19 +1,16 @@
-name: Appium Tests with Video & Allure Report
+name: Appium Tests with Video (Manual USB)
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 jobs:
   test-android-usb:
     name: Android USB Tests with Video Recording
-    runs-on: windows-latest
+    if: ${{ secrets.ANDROID_DEVICE_UDID != '' }}
+    runs-on: [self-hosted, windows]
     timeout-minutes: 45
 
     env:
@@ -30,44 +27,30 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          api-level: 30
-          target: google_apis
-
-      - name: Install Appium
-        run: npm install -g appium appium-uiautomator2-driver
+        run: npm ci --legacy-peer-deps
 
       - name: Start Appium Server
-        run: appium --port 4723 --relaxed-security &
         shell: pwsh
-
-      - name: Wait for Appium
-        run: Start-Sleep -Seconds 5
-        shell: pwsh
-
-      - name: Create videos directory
-        run: mkdir -p videos
-        shell: bash
+        run: Start-Process appium -ArgumentList '--port','4723','--relaxed-security'
 
       - name: Run tests with video recording
-        id: test
-        continue-on-error: true
+        shell: pwsh
         run: |
           $spec = "./test/features/authentication/blank-fields-validation.feature"
           & .\run-test-with-video.ps1 -SpecFile $spec -VideoDir "./videos"
-        shell: pwsh
 
-      - name: Generate Allure Report
-        if: always()
-        run: npm run report:generate
+      - name: Generate Allure Report if results exist
+        shell: pwsh
+        run: |
+          if (Test-Path "reports/allure-results") {
+            npm run report:generate
+          } else {
+            Write-Host "No Allure results found; skipping report generation."
+          }
 
       - name: Upload Allure Results
         if: always()
@@ -75,7 +58,8 @@ jobs:
         with:
           name: allure-results-${{ github.run_number }}
           path: reports/allure-results/
-          retention-days: 30
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Upload Allure Report
         if: always()
@@ -83,7 +67,8 @@ jobs:
         with:
           name: allure-report-${{ github.run_number }}
           path: reports/allure-report/
-          retention-days: 30
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Upload Test Videos
         if: always()
@@ -91,7 +76,8 @@ jobs:
         with:
           name: test-videos-${{ github.run_number }}
           path: videos/
-          retention-days: 30
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Upload Screenshots
         if: always()
@@ -99,8 +85,8 @@ jobs:
         with:
           name: screenshots-${{ github.run_number }}
           path: screenshots/
-          if-no-files-found: ignore
-          retention-days: 30
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Upload Logs
         if: always()
@@ -108,78 +94,5 @@ jobs:
         with:
           name: logs-${{ github.run_number }}
           path: logs/
-          if-no-files-found: ignore
-          retention-days: 30
-
-      - name: Comment PR with Test Results
-        if: always() && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const runNumber = context.runId;
-            
-            let comment = `## 🧪 Test Execution Results\n\n`;
-            comment += `**Run:** [#${context.runId}](${context.payload.pull_request.html_url}/checks)\n\n`;
-            
-            if (fs.existsSync('reports/allure-report')) {
-              comment += `### 📊 Allure Report\n`;
-              comment += `[View Allure Report](${context.payload.repository.html_url}/actions/runs/${context.runId})\n\n`;
-            }
-            
-            comment += `### 📁 Artifacts Available\n`;
-            comment += `- **Allure Report** - Test execution results with charts\n`;
-            comment += `- **Test Videos** - Screen recordings of test execution\n`;
-            comment += `- **Screenshots** - Failed step screenshots\n`;
-            comment += `- **Logs** - WebdriverIO and Appium logs\n`;
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: comment
-            });
-
-      - name: Test Report Summary
-        if: always()
-        run: |
-          Write-Host "========================================" -ForegroundColor Green
-          Write-Host "Test Execution Complete" -ForegroundColor Green
-          Write-Host "========================================" -ForegroundColor Green
-          Write-Host ""
-          Write-Host "Artifacts Generated:" -ForegroundColor Yellow
-          Write-Host "  ✓ Allure Report (reports/allure-report/)" -ForegroundColor Green
-          Write-Host "  ✓ Test Videos (videos/)" -ForegroundColor Green
-          Write-Host "  ✓ Screenshots (screenshots/)" -ForegroundColor Green
-          Write-Host "  ✓ Logs (logs/)" -ForegroundColor Green
-          Write-Host ""
-          Write-Host "Download artifacts from the Actions tab" -ForegroundColor Cyan
-        shell: pwsh
-
-  publish-allure-report:
-    name: Publish Allure Report to GitHub Pages
-    if: always()
-    needs: test-android-usb
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Download Allure Report Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: allure-report-${{ github.run_number }}
-          path: _site
-
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload to GitHub Pages
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: _site
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-      - name: Print Deployment URL
-        run: echo "Allure Report published to GitHub Pages"
+          if-no-files-found: warn
+          retention-days: 14
