@@ -1,17 +1,140 @@
-name: Appium Tests with Video (Disabled)
+name: Appium Tests with Video (Self-Hosted)
 
 on:
   workflow_dispatch:
+    inputs:
+      spec_file:
+        description: "Feature file path to run"
+        required: false
+        default: "./test/features/authentication/blank-fields-validation.feature"
 
 permissions:
   contents: read
 
 jobs:
-  disabled:
-    name: Disabled until self-hosted runner is configured
-    runs-on: ubuntu-latest
+  test-android-usb:
+    name: Android USB Tests with Video Recording
+    runs-on: [self-hosted, windows]
+    timeout-minutes: 60
+
+    env:
+      ANDROID_DEVICE_UDID: ${{ secrets.ANDROID_DEVICE_UDID }}
+      TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+      TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+      INVALID_EMAIL: ${{ secrets.INVALID_EMAIL }}
+      INCORRECT_PASSWORD: ${{ secrets.INCORRECT_PASSWORD }}
+
     steps:
-      - name: Disabled workflow notice
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps --ignore-scripts
+
+      - name: Validate local tools
+        shell: pwsh
         run: |
-          echo "This workflow is temporarily disabled."
-          echo "Set up a self-hosted Windows runner with an Android device to enable USB video runs."
+          $missing = @()
+
+          if (-not (Get-Command adb -ErrorAction SilentlyContinue)) {
+            $missing += 'adb'
+          }
+
+          if (-not (Get-Command appium -ErrorAction SilentlyContinue)) {
+            $missing += 'appium'
+          }
+
+          if (-not (Get-Command scrcpy -ErrorAction SilentlyContinue)) {
+            $missing += 'scrcpy'
+          }
+
+          if ($missing.Count -gt 0) {
+            Write-Error ("Missing required tools on self-hosted runner: " + ($missing -join ', '))
+            exit 1
+          }
+
+      - name: Validate USB Android device
+        shell: pwsh
+        run: |
+          $adbOutput = adb devices
+          Write-Host $adbOutput
+
+          if ($env:ANDROID_DEVICE_UDID) {
+            if ($adbOutput -notmatch [regex]::Escape($env:ANDROID_DEVICE_UDID)) {
+              Write-Error "Configured ANDROID_DEVICE_UDID was not detected by adb."
+              exit 1
+            }
+          } elseif ($adbOutput -notmatch "`tdevice") {
+            Write-Error "No Android device detected in adb devices output."
+            exit 1
+          }
+
+      - name: Start Appium server
+        shell: pwsh
+        run: |
+          Start-Process appium -ArgumentList '--port','4723','--relaxed-security' | Out-Null
+          Start-Sleep -Seconds 5
+
+      - name: Run test with recording
+        shell: pwsh
+        run: |
+          $spec = "${{ github.event.inputs.spec_file }}"
+          if ([string]::IsNullOrWhiteSpace($spec)) {
+            $spec = "./test/features/authentication/blank-fields-validation.feature"
+          }
+
+          & .\run-test-with-video.ps1 -SpecFile $spec -VideoDir "./videos"
+
+      - name: Generate Allure report if results exist
+        if: always()
+        shell: pwsh
+        run: |
+          if (Test-Path "reports/allure-results") {
+            npm run report:generate
+          } else {
+            Write-Host "No Allure results found; skipping report generation."
+          }
+
+      - name: Upload videos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-videos-${{ github.run_number }}
+          path: videos/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload Allure results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results-${{ github.run_number }}
+          path: reports/allure-results/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload Allure report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report-${{ github.run_number }}
+          path: reports/allure-report/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload screenshots and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-and-screenshots-${{ github.run_number }}
+          path: |
+            screenshots/
+            logs/
+          if-no-files-found: warn
+          retention-days: 14
