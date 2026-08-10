@@ -63,15 +63,21 @@ jobs:
         shell: powershell
         run: |
           $adbOutput = adb devices
-          Write-Host $adbOutput
+          $adbLines = @($adbOutput | ForEach-Object { $_.ToString().TrimEnd() })
+          $deviceLines = @($adbLines | Where-Object { $_ -match '\sdevice$' -and $_ -notmatch '^List of devices attached' })
 
-          if ($env:ANDROID_DEVICE_UDID) {
-            if ($adbOutput -notmatch [regex]::Escape($env:ANDROID_DEVICE_UDID)) {
-              Write-Error "Configured ANDROID_DEVICE_UDID was not detected by adb."
-              exit 1
-            }
-          } elseif ($adbOutput -notmatch "`tdevice") {
+          Write-Host ($adbLines -join [Environment]::NewLine)
+
+          if ($deviceLines.Count -eq 0) {
             Write-Error "No Android device detected in adb devices output."
+            exit 1
+          }
+
+          $detectedDeviceIds = @($deviceLines | ForEach-Object { ($_ -split '\s+')[0] })
+          Write-Host ("Detected Android device IDs: " + ($detectedDeviceIds -join ', '))
+
+          if ($env:ANDROID_DEVICE_UDID -and ($detectedDeviceIds -notcontains $env:ANDROID_DEVICE_UDID)) {
+            Write-Error "Configured ANDROID_DEVICE_UDID was not detected by adb."
             exit 1
           }
 
