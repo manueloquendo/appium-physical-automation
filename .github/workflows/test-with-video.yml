@@ -38,7 +38,7 @@ jobs:
         run: npm install --legacy-peer-deps --ignore-scripts
 
       - name: Validate local tools
-        shell: pwsh
+        shell: powershell
         run: |
           $missing = @()
 
@@ -60,7 +60,7 @@ jobs:
           }
 
       - name: Validate USB Android device
-        shell: pwsh
+        shell: powershell
         run: |
           $adbOutput = adb devices
           Write-Host $adbOutput
@@ -76,13 +76,13 @@ jobs:
           }
 
       - name: Start Appium server
-        shell: pwsh
+        shell: powershell
         run: |
           Start-Process appium -ArgumentList '--port','4723','--relaxed-security' | Out-Null
           Start-Sleep -Seconds 5
 
       - name: Run test with recording
-        shell: pwsh
+        shell: powershell
         run: |
           $spec = "${{ github.event.inputs.spec_file }}"
           if ([string]::IsNullOrWhiteSpace($spec)) {
@@ -93,7 +93,7 @@ jobs:
 
       - name: Generate Allure report if results exist
         if: always()
-        shell: pwsh
+        shell: powershell
         run: |
           if (Test-Path "reports/allure-results") {
             npm run report:generate
