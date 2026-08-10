@@ -37,6 +37,32 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps --ignore-scripts
 
+      - name: Create local .env for test execution
+        shell: powershell
+        run: |
+          $required = @{
+            'TEST_USER_EMAIL' = $env:TEST_USER_EMAIL
+            'TEST_USER_PASSWORD' = $env:TEST_USER_PASSWORD
+            'INVALID_EMAIL' = $env:INVALID_EMAIL
+            'INCORRECT_PASSWORD' = $env:INCORRECT_PASSWORD
+          }
+
+          $missing = @($required.GetEnumerator() | Where-Object { [string]::IsNullOrWhiteSpace($_.Value) } | ForEach-Object { $_.Key })
+          if ($missing.Count -gt 0) {
+            Write-Error ("Missing required GitHub secrets for self-hosted execution: " + ($missing -join ', '))
+            exit 1
+          }
+
+          @(
+            "ANDROID_DEVICE_UDID=$($env:ANDROID_DEVICE_UDID)"
+            "TEST_USER_EMAIL=$($env:TEST_USER_EMAIL)"
+            "TEST_USER_PASSWORD=$($env:TEST_USER_PASSWORD)"
+            "INVALID_EMAIL=$($env:INVALID_EMAIL)"
+            "INCORRECT_PASSWORD=$($env:INCORRECT_PASSWORD)"
+          ) | Set-Content -Path '.env'
+
+          Write-Host 'Local .env file created for workflow execution.'
+
       - name: Validate local tools
         shell: powershell
         run: |
