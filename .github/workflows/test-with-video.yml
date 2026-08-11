@@ -124,10 +124,11 @@ jobs:
           
           while ($attempt -lt $maxAttempts -and -not $appiumReady) {
             try {
-              $response = Invoke-WebRequest -Uri 'http://127.0.0.1:4723/status' -ErrorAction Stop
+              $response = Invoke-WebRequest -Uri 'http://127.0.0.1:4723/status' -UseBasicParsing -ErrorAction Stop
               if ($response.StatusCode -eq 200) {
                 Write-Host "Appium server is ready!"
                 $appiumReady = $true
+                break
               }
             } catch {
               $attempt++
