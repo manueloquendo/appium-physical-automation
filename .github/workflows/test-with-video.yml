@@ -15,6 +15,7 @@ jobs:
   test-android-usb:
     name: Android USB Tests with Video Recording
     runs-on: [self-hosted, windows]
+    environment: Mobile
     timeout-minutes: 60
 
     env:
