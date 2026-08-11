@@ -115,7 +115,7 @@ jobs:
         shell: powershell
         run: |
           Write-Host "Starting Appium server..."
-          $appiumProcess = Start-Process appium -ArgumentList '--port','4723','--relaxed-security' -PassThru -NoNewWindow
+          $appiumProcess = Start-Process cmd.exe -ArgumentList '/c appium --port 4723 --relaxed-security' -PassThru -NoNewWindow
           
           # Wait for Appium to be ready
           $maxAttempts = 30
