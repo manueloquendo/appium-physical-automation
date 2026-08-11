@@ -38,6 +38,9 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps --ignore-scripts
 
+      - name: Install Appium globally
+        run: npm install -g appium
+
       - name: Create local .env for test execution
         shell: powershell
         run: |
