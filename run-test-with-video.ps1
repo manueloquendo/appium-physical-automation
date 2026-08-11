@@ -23,6 +23,33 @@ Write-Host "Spec:  $SpecFile"
 Write-Host "Video: $videoFile"
 Write-Host ""
 
+# Start Appium server
+Write-Host "[*] Starting Appium server..."
+$appiumProcess = Start-Process cmd.exe -ArgumentList '/c appium --port 4723 --relaxed-security' -PassThru -NoNewWindow
+
+# Wait for Appium to be ready
+$maxAttempts = 30
+$attempt = 0
+$appiumReady = $false
+while ($attempt -lt $maxAttempts -and -not $appiumReady) {
+    try {
+        $response = Invoke-WebRequest -Uri 'http://127.0.0.1:4723/status' -UseBasicParsing -ErrorAction Stop
+        if ($response.StatusCode -eq 200) {
+            Write-Host "[+] Appium server is ready!"
+            $appiumReady = $true
+            break
+        }
+    } catch {
+        $attempt++
+        Write-Host "[*] Waiting for Appium... (attempt $attempt/$maxAttempts)"
+        Start-Sleep -Seconds 1
+    }
+}
+if (-not $appiumReady) {
+    Write-Error "Appium server failed to start within 30 seconds"
+    exit 1
+}
+
 # Start scrcpy recording in background
 Write-Host "[*] Starting scrcpy..."
 $scrcpyProcess = Start-Process -FilePath "scrcpy" -ArgumentList "--record=$videoFile", "--no-window" -PassThru -NoNewWindow
@@ -53,6 +80,12 @@ Start-Sleep -Seconds 2
 # Stop scrcpy
 Stop-Process -Id $scrcpyPID -Force -ErrorAction SilentlyContinue
 Write-Host "[+] scrcpy stopped"
+
+# Stop Appium
+if ($null -ne $appiumProcess -and -not $appiumProcess.HasExited) {
+    Stop-Process -Id $appiumProcess.Id -Force -ErrorAction SilentlyContinue
+    Write-Host "[+] Appium stopped"
+}
 
 # Wait for file to be written
 Start-Sleep -Seconds 1
