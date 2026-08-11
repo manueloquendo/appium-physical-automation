@@ -66,8 +66,6 @@ export const config: WebdriverIO.Config = {
     exclude: [],
     maxInstances: 1,
 
-    services: ['appium'],
-
     capabilities: [
         {
             platformName: 'Android',
