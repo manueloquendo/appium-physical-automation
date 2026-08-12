@@ -293,8 +293,12 @@ Add these secrets in your repository settings under Settings > Secrets and varia
 - `INCORRECT_PASSWORD`
 - `BROWSERSTACK_USERNAME` (optional, for remote mobile execution)
 - `BROWSERSTACK_ACCESS_KEY` (optional, for remote mobile execution)
+- `CLICKUP_API_TOKEN` (optional, for auto-creating ClickUp bugs on failed self-hosted runs)
+- `CLICKUP_LIST_ID` (optional, target ClickUp list where bug tasks will be created)
 
 The workflow runs the TypeScript validation on every push/PR. The optional mobile smoke job is enabled only when BrowserStack credentials are provided.
+
+For the self-hosted workflow `Appium Tests with Video (Self-Hosted)`, when a run fails it can automatically create a bug task in ClickUp if both `CLICKUP_API_TOKEN` and `CLICKUP_LIST_ID` are configured.
 
 ## Troubleshooting
 

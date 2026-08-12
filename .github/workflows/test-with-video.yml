@@ -7,6 +7,11 @@ on:
         description: "Feature file path to run"
         required: false
         default: "./test/features/authentication/blank-fields-validation.feature"
+      force_failure_for_clickup_test:
+        # TEMP TEST SWITCH (1/3): set to true only to validate ClickUp bug creation.
+        description: "Force an intentional failure to test ClickUp bug creation (true/false)"
+        required: false
+        default: "false"
 
 permissions:
   contents: read
@@ -24,6 +29,8 @@ jobs:
       TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
       INVALID_EMAIL: ${{ secrets.INVALID_EMAIL }}
       INCORRECT_PASSWORD: ${{ secrets.INCORRECT_PASSWORD }}
+      CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
+      CLICKUP_LIST_ID: ${{ secrets.CLICKUP_LIST_ID }}
 
     steps:
       - name: Checkout repository
@@ -121,6 +128,15 @@ jobs:
 
           & .\run-test-with-video.ps1 -SpecFile $spec -VideoDir "./videos"
 
+      - name: Force failure for ClickUp test
+        # TEMP TEST STEP (2/3): this intentionally fails the job only when input=true.
+        if: ${{ github.event.inputs.force_failure_for_clickup_test == 'true' }}
+        shell: powershell
+        run: |
+          # REVERT NOTE (3/3): set input back to false (or remove this step) after validating ClickUp.
+          Write-Error "Intentional failure enabled to test ClickUp bug creation."
+          exit 1
+
       - name: Generate Allure report if results exist
         if: always()
         shell: powershell
@@ -168,3 +184,69 @@ jobs:
             logs/
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Create ClickUp bug when workflow fails
+        if: failure()
+        shell: powershell
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:CLICKUP_API_TOKEN) -or [string]::IsNullOrWhiteSpace($env:CLICKUP_LIST_ID)) {
+            Write-Host "ClickUp integration skipped: CLICKUP_API_TOKEN or CLICKUP_LIST_ID not configured."
+            exit 0
+          }
+
+          $specInput = "${{ github.event.inputs.spec_file }}"
+          if ([string]::IsNullOrWhiteSpace($specInput)) {
+            $specInput = "./test/features/authentication/blank-fields-validation.feature"
+          }
+
+          $runUrl = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          $repoUrl = "${{ github.server_url }}/${{ github.repository }}"
+          $title = "[Automation][Android USB] Failed run #${{ github.run_number }}"
+
+          $description = @"
+          Automated bug generated from GitHub Actions.
+
+          Workflow: ${{ github.workflow }}
+          Job: ${{ github.job }}
+          Repository: ${{ github.repository }}
+          Branch/Ref: ${{ github.ref_name }}
+          Commit: ${{ github.sha }}
+          Triggered by: ${{ github.actor }}
+          Spec file: $specInput
+
+          Run URL: $runUrl
+          Repository URL: $repoUrl
+
+          Artifacts expected:
+          - test-videos-${{ github.run_number }}
+          - allure-results-${{ github.run_number }}
+          - allure-report-${{ github.run_number }}
+          - logs-and-screenshots-${{ github.run_number }}
+          "@
+
+          $payload = @{
+            name = $title
+            description = $description
+            tags = @("automation", "bug", "android", "github-actions")
+          }
+
+          $headers = @{
+            Authorization = $env:CLICKUP_API_TOKEN
+            "Content-Type" = "application/json"
+          }
+
+          $jsonBody = $payload | ConvertTo-Json -Depth 10
+          $endpoint = "https://api.clickup.com/api/v2/list/$($env:CLICKUP_LIST_ID)/task"
+
+          try {
+            $result = Invoke-RestMethod -Method Post -Uri $endpoint -Headers $headers -Body $jsonBody
+            Write-Host "ClickUp bug created successfully. Task ID: $($result.id)"
+            Write-Host "Task URL: $($result.url)"
+          } catch {
+            Write-Warning "Failed to create ClickUp bug: $($_.Exception.Message)"
+            if ($_.ErrorDetails -and $_.ErrorDetails.Message) {
+              Write-Warning "ClickUp API details: $($_.ErrorDetails.Message)"
+            }
+            # Do not fail the workflow due to ticketing issues.
+            exit 0
+          }
