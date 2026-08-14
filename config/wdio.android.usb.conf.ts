@@ -14,7 +14,7 @@ const featurePath = path.join(projectRoot, 'test', 'features', '**', '*.feature'
 const stepDefinitionsPath = path.join(projectRoot, 'test', 'step-definitions', '**', '*.ts');
 const logsDirectory = path.join(projectRoot, 'logs');
 const screenshotsDirectory = path.join(projectRoot, 'screenshots');
-const allureResultsDirectory = path.join(projectRoot, 'allure-results');
+const allureResultsDirectory = path.join(projectRoot, 'reports', 'allure-results');
 
 const androidDeviceUdid = mobileConfig.androidDeviceUdid;
 const androidAppPath = mobileConfig.androidAppPath;

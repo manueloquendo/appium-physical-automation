@@ -39,6 +39,7 @@
     "typecheck": "tsc --noEmit",
     "test:android:auth:blank:video": "pwsh -Command \"& .\\run-test-with-video.ps1 -SpecFile './test/features/authentication/blank-fields-validation.feature'\"",
     "test:android:all:video": "pwsh -Command \"& .\\run-test-with-video.ps1\"",
+    "test:android:all:report": "npm run report:clean && npm run test:android:all && npm run report:generate",
     "report:clean": "node -e \"require('fs').rmSync('reports/allure-results', { recursive: true, force: true }); require('fs').rmSync('reports/allure-report', { recursive: true, force: true })\"",
     "report:generate": "allure generate reports/allure-results --clean -o reports/allure-report",
     "report:open": "allure open reports/allure-report",

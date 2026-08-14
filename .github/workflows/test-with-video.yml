@@ -118,15 +118,21 @@ jobs:
             exit 1
           }
 
-      - name: Run test with recording
+      - name: Run Android tests in series
         shell: powershell
         run: |
           $spec = "${{ github.event.inputs.spec_file }}"
+
           if ([string]::IsNullOrWhiteSpace($spec)) {
-            $spec = "./test/features/authentication/blank-fields-validation.feature"
+            Write-Host "No spec provided. Running the full Android suite in sequence for a single Allure report."
+            npm run report:clean
+            npm run test:android:all
+            exit $LASTEXITCODE
           }
 
+          Write-Host "Running single spec with video recording: $spec"
           & .\run-test-with-video.ps1 -SpecFile $spec -VideoDir "./videos"
+          exit $LASTEXITCODE
 
       - name: Force failure for ClickUp test
         # TEMP TEST STEP (2/3): this intentionally fails the job only when input=true.
@@ -141,8 +147,20 @@ jobs:
         if: always()
         shell: powershell
         run: |
-          if (Test-Path "reports/allure-results") {
-            npm run report:generate
+          $resultDirs = @(
+            "reports/allure-results",
+            "allure-results"
+          )
+
+          $resultDir = $resultDirs | Where-Object { Test-Path $_ } | Select-Object -First 1
+
+          if ($resultDir) {
+            Write-Host "Found Allure results at: $resultDir"
+            if ($resultDir -eq "allure-results") {
+              allure generate $resultDir --clean -o reports/allure-report
+            } else {
+              npm run report:generate
+            }
           } else {
             Write-Host "No Allure results found; skipping report generation."
           }

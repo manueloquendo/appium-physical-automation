@@ -23,6 +23,27 @@ Write-Host "Spec:  $SpecFile"
 Write-Host "Video: $videoFile"
 Write-Host ""
 
+# Wake the device and start scrcpy recording before Appium so startup failures are captured too.
+Write-Host "[*] Waking Android device before recording..."
+adb shell input keyevent KEYCODE_WAKEUP | Out-Null
+Start-Sleep -Seconds 1
+
+Write-Host "[*] Starting scrcpy..."
+$scrcpyArgs = @(
+    "--record=$videoFile",
+    "--no-window",
+    "--stay-awake",
+    "--disable-screensaver",
+    "--bit-rate=8M",
+    "--max-fps=30"
+)
+$scrcpyProcess = Start-Process -FilePath "scrcpy" -ArgumentList $scrcpyArgs -PassThru -NoNewWindow
+$scrcpyPID = $scrcpyProcess.Id
+Write-Host "[+] scrcpy started (PID: $scrcpyPID)"
+
+# Give scrcpy a moment to connect and begin writing the file.
+Start-Sleep -Seconds 3
+
 # Start Appium server
 Write-Host "[*] Starting Appium server..."
 $appiumProcess = Start-Process cmd.exe -ArgumentList '/c appium --port 4723 --relaxed-security' -PassThru -NoNewWindow
@@ -50,15 +71,6 @@ if (-not $appiumReady) {
     exit 1
 }
 
-# Start scrcpy recording in background
-Write-Host "[*] Starting scrcpy..."
-$scrcpyProcess = Start-Process -FilePath "scrcpy" -ArgumentList "--record=$videoFile", "--no-window" -PassThru -NoNewWindow
-$scrcpyPID = $scrcpyProcess.Id
-Write-Host "[+] scrcpy started (PID: $scrcpyPID)"
-
-# Wait for scrcpy to stabilize
-Start-Sleep -Seconds 3
-
 # Run tests
 Write-Host ""
 Write-Host "[*] Running tests..."
@@ -77,9 +89,16 @@ Write-Host ""
 Write-Host "[*] Stopping recording..."
 Start-Sleep -Seconds 2
 
-# Stop scrcpy
-Stop-Process -Id $scrcpyPID -Force -ErrorAction SilentlyContinue
-Write-Host "[+] scrcpy stopped"
+# Stop scrcpy and wait for the encoder to finalize the MP4.
+if ($null -ne $scrcpyPID) {
+    try {
+        Stop-Process -Id $scrcpyPID -Force -ErrorAction Stop
+        Wait-Process -Id $scrcpyPID -Timeout 10 -ErrorAction SilentlyContinue
+        Write-Host "[+] scrcpy stopped"
+    } catch {
+        Write-Warning "Could not stop scrcpy cleanly: $($_.Exception.Message)"
+    }
+}
 
 # Stop Appium
 if ($null -ne $appiumProcess -and -not $appiumProcess.HasExited) {
@@ -87,18 +106,24 @@ if ($null -ne $appiumProcess -and -not $appiumProcess.HasExited) {
     Write-Host "[+] Appium stopped"
 }
 
-# Wait for file to be written
-Start-Sleep -Seconds 1
+# Wait for file to be written and finalized.
+Start-Sleep -Seconds 2
 
-# Verify video was created
+# Verify video was created and is not empty.
 if (Test-Path $videoFile) {
-    $fileSize = [math]::Round((Get-Item $videoFile).Length / 1MB, 2)
-    Write-Host ""
-    Write-Host "========================================="
-    Write-Host "[OK] Video recorded successfully"
-    Write-Host "Path: $videoFile"
-    Write-Host "Size: $fileSize MB"
-    Write-Host "========================================="
+    $videoItem = Get-Item $videoFile
+    $fileSize = [math]::Round(($videoItem.Length / 1MB), 2)
+    if ($videoItem.Length -gt 0) {
+        Write-Host ""
+        Write-Host "========================================="
+        Write-Host "[OK] Video recorded successfully"
+        Write-Host "Path: $videoFile"
+        Write-Host "Size: $fileSize MB"
+        Write-Host "========================================="
+    } else {
+        Write-Host ""
+        Write-Host "[!] Video file was created but is empty: $videoFile"
+    }
 } else {
     Write-Host ""
     Write-Host "[!] Video file not found: $videoFile"

@@ -20,32 +20,32 @@ param(
 # Crear carpeta de videos si no existe
 if (-not (Test-Path $VideoDir)) {
     New-Item -ItemType Directory -Path $VideoDir -Force | Out-Null
-    Write-Host "✓ Carpeta de videos creada: $VideoDir"
+    Write-Host "[+] Carpeta de videos creada: $VideoDir"
 }
 
 # Timestamp para el nombre del video
 $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
 $videoFile = Join-Path $VideoDir "test_$timestamp.mp4"
 
-Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-Write-Host "🎬 Iniciando grabación de pruebas..."
-Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+Write-Host "=============================================="
+Write-Host "Iniciando grabacion de pruebas..."
+Write-Host "=============================================="
 Write-Host "Spec:  $SpecFile"
 Write-Host "Video: $videoFile"
 Write-Host ""
 
-# Iniciar scrcpy en background con grabación
-Write-Host "⏹️  Iniciando scrcpy..."
-$scrcpyProcess = Start-Process -FilePath "scrcpy" -ArgumentList "--record=$videoFile", "--no-window" -PassThru -NoNewWindow
+# Start scrcpy recording before Appium so startup failures are captured too.
+Write-Host "[*] Iniciando scrcpy..."
+$scrcpyProcess = Start-Process -FilePath "scrcpy" -ArgumentList "--record=$videoFile", "--no-window", "--stay-awake" -PassThru -NoNewWindow
 $scrcpyPID = $scrcpyProcess.Id
-Write-Host "✓ scrcpy iniciado (PID: $scrcpyPID)"
+Write-Host "[+] scrcpy iniciado (PID: $scrcpyPID)"
 
-# Esperar a que scrcpy se estabilice
+# Esperar a que scrcpy se conecte y comience a escribir el archivo.
 Start-Sleep -Seconds 3
 
 # Ejecutar las pruebas
 Write-Host ""
-Write-Host "🧪 Ejecutando pruebas..."
+Write-Host "[*] Ejecutando pruebas..."
 Write-Host ""
 
 try {
@@ -53,17 +53,17 @@ try {
     $testResult = $LASTEXITCODE
 } catch {
     $testResult = 1
-    Write-Host "❌ Error ejecutando pruebas: $_"
+    Write-Host "[!] Error ejecutando pruebas: $_"
 }
 
 # Esperar un poco para que scrcpy termine de grabar
 Write-Host ""
-Write-Host "⏹️  Finalizando grabación..."
+Write-Host "[*] Finalizando grabacion..."
 Start-Sleep -Seconds 2
 
 # Detener scrcpy
 Stop-Process -Id $scrcpyPID -Force -ErrorAction SilentlyContinue
-Write-Host "✓ scrcpy detenido"
+Write-Host "[+] scrcpy detenido"
 
 # Esperar a que se escriba el archivo
 Start-Sleep -Seconds 1
@@ -72,21 +72,21 @@ Start-Sleep -Seconds 1
 if (Test-Path $videoFile) {
     $fileSize = [math]::Round((Get-Item $videoFile).Length / 1MB, 2)
     Write-Host ""
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    Write-Host "✅ Video grabado exitosamente"
-    Write-Host "📁 Ruta: $videoFile"
-    Write-Host "📊 Tamaño: $fileSize MB"
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    Write-Host "=============================================="
+    Write-Host "Video grabado exitosamente"
+    Write-Host "Ruta: $videoFile"
+    Write-Host "Tamano: $fileSize MB"
+    Write-Host "=============================================="
 } else {
     Write-Host ""
-    Write-Host "⚠️  El archivo de video no se encontró en: $videoFile"
+    Write-Host "[!] El archivo de video no se encontro en: $videoFile"
 }
 
 Write-Host ""
 if ($testResult -eq 0) {
-    Write-Host "✅ Pruebas completadas exitosamente"
+    Write-Host "[OK] Pruebas completadas exitosamente"
 } else {
-    Write-Host "❌ Las pruebas fallaron (Exit Code: $testResult)"
+    Write-Host "[ERROR] Las pruebas fallaron (Exit Code: $testResult)"
 }
 
 exit $testResult
