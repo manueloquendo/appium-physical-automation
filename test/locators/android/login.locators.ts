@@ -105,6 +105,16 @@ export const loginLocators = {
         'or contains(@text,"Authentication failed") ' +
         'or contains(@content-desc,"Authentication failed") ' +
         'or contains(@text,"incorrect password") ' +
-        'or contains(@content-desc,"incorrect password")' +
+        'or contains(@content-desc,"incorrect password") ' +
+        'or contains(@text,"password is invalid") ' +
+        'or contains(@content-desc,"password is invalid") ' +
+        'or contains(@text,"invalid password") ' +
+        'or contains(@content-desc,"invalid password") ' +
+        'or contains(@text,"invalid email or password") ' +
+        'or contains(@content-desc,"invalid email or password") ' +
+        'or contains(@text,"invalid-credential") ' +
+        'or contains(@content-desc,"invalid-credential") ' +
+        'or contains(@text,"invalid credentials") ' +
+        'or contains(@content-desc,"invalid credentials")' +
         ']',
 } as const;
