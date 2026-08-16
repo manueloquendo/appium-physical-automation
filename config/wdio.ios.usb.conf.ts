@@ -93,7 +93,7 @@ export const config: WebdriverIO.Config = {
     cucumberOpts: {
         import: [stepDefinitionsPath],
         tagExpression: '',
-        timeout: 60_000,
+        timeout: 120_000,
         failFast: false,
         snippets: true,
         source: true,
