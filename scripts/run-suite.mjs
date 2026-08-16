@@ -11,7 +11,7 @@ const SPECS = [
     './test/features/sign-up/terms-and-privacy-validation.feature',
     './test/features/forgot-password/successful-reset.feature',
     './test/features/sign-up/successful-registration.feature',
-    './test/features/authentication/successful-authentication.feature',
+    './test/features/authentication/successful-login.feature',
 ];
 
 const platform = process.argv[2];
