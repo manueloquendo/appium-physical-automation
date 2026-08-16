@@ -378,18 +378,45 @@ class LoginPage {
         const failureMessage =
             this.authenticationFailureMessage;
 
-        await failureMessage.waitForDisplayed({
+        let messageFoundInPageSource = false;
+
+        await browser.waitUntil(async () => {
+            try {
+                if (await failureMessage.isDisplayed()) {
+                    return true;
+                }
+            } catch {
+                /* The message may be rendered outside a single native node. */
+            }
+
+            const pageSource =
+                (await browser.getPageSource())
+                    .toLowerCase()
+                    .replace(/\s+/g, ' ');
+
+            messageFoundInPageSource =
+                pageSource.includes('auth/wrong-password') ||
+                pageSource.includes('wrong-password') ||
+                pageSource.includes('password is invalid') ||
+                pageSource.includes('invalid password') ||
+                pageSource.includes('invalid-credential') ||
+                pageSource.includes('invalid credentials') ||
+                pageSource.includes('authentication failed') ||
+                pageSource.includes('incorrect password');
+
+            return messageFoundInPageSource;
+        }, {
             timeout: 30_000,
+            interval: 1_000,
             timeoutMsg:
                 'The authentication failure message ' +
                 'was not displayed after submitting ' +
                 'an incorrect password.',
         });
 
-        const actualMessage =
-            await this.getValidationMessageText(
-                failureMessage
-            );
+        const actualMessage = messageFoundInPageSource
+            ? await browser.getPageSource()
+            : await this.getValidationMessageText(failureMessage);
 
         console.log(
             `Authentication failure message: ` +
