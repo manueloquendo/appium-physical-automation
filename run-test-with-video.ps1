@@ -18,7 +18,8 @@ if (-not (Test-Path $VideoDir)) {
 # Generate video filename
 $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
 $videoFile = Join-Path $VideoDir "test_$timestamp.mp4"
-$appiumLogFile = Join-Path $VideoDir "appium_$timestamp.log"
+$appiumStdOutLogFile = Join-Path $VideoDir "appium_$timestamp.stdout.log"
+$appiumStdErrLogFile = Join-Path $VideoDir "appium_$timestamp.stderr.log"
 
 Write-Host "========================================="
 Write-Host "Starting test recording..."
@@ -38,7 +39,7 @@ $scrcpyArgs = @(
     "--no-window",
     "--stay-awake",
     "--disable-screensaver",
-    "--bit-rate=8M",
+    "--video-bit-rate=8M",
     "--max-fps=30"
 )
 $scrcpyProcess = Start-Process -FilePath "scrcpy" -ArgumentList $scrcpyArgs -PassThru -NoNewWindow
@@ -50,8 +51,9 @@ Start-Sleep -Seconds 3
 
 # Start Appium server
 Write-Host "[*] Starting Appium server..."
-$appiumProcess = Start-Process -FilePath "appium" -ArgumentList @("--port", "4723", "--relaxed-security") -PassThru -NoNewWindow -RedirectStandardOutput $appiumLogFile -RedirectStandardError $appiumLogFile
-Write-Host "[*] Appium log: $appiumLogFile"
+$appiumProcess = Start-Process -FilePath "appium" -ArgumentList @("--port", "4723", "--relaxed-security") -PassThru -NoNewWindow -RedirectStandardOutput $appiumStdOutLogFile -RedirectStandardError $appiumStdErrLogFile
+Write-Host "[*] Appium stdout log: $appiumStdOutLogFile"
+Write-Host "[*] Appium stderr log: $appiumStdErrLogFile"
 
 # Wait for Appium to be ready
 $pollIntervalSeconds = 2
@@ -61,9 +63,13 @@ $appiumReady = $false
 while ($attempt -lt $maxAttempts -and -not $appiumReady) {
     if ($appiumProcess.HasExited) {
         Write-Error "Appium process exited early with code $($appiumProcess.ExitCode)."
-        if (Test-Path $appiumLogFile) {
-            Write-Host "--- Last Appium log lines ---"
-            Get-Content -Path $appiumLogFile -Tail 80
+        if (Test-Path $appiumStdOutLogFile) {
+            Write-Host "--- Last Appium stdout log lines ---"
+            Get-Content -Path $appiumStdOutLogFile -Tail 80
+        }
+        if (Test-Path $appiumStdErrLogFile) {
+            Write-Host "--- Last Appium stderr log lines ---"
+            Get-Content -Path $appiumStdErrLogFile -Tail 80
         }
         exit 1
     }
@@ -85,9 +91,13 @@ while ($attempt -lt $maxAttempts -and -not $appiumReady) {
 }
 if (-not $appiumReady) {
     Write-Error "Appium server failed to start within $AppiumStartupTimeoutSeconds seconds"
-    if (Test-Path $appiumLogFile) {
-        Write-Host "--- Last Appium log lines ---"
-        Get-Content -Path $appiumLogFile -Tail 80
+    if (Test-Path $appiumStdOutLogFile) {
+        Write-Host "--- Last Appium stdout log lines ---"
+        Get-Content -Path $appiumStdOutLogFile -Tail 80
+    }
+    if (Test-Path $appiumStdErrLogFile) {
+        Write-Host "--- Last Appium stderr log lines ---"
+        Get-Content -Path $appiumStdErrLogFile -Tail 80
     }
     exit 1
 }
