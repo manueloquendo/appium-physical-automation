@@ -79,14 +79,14 @@ export const loginLocators = {
      */
     invalidEmailFormatMessage:
         '//*[' +
-        '@text="^The email format is invalid.22" ' +
-        'or @content-desc="^The email format is invalid.22" ' +
-        'or @text="The email format is invalid.22" ' +
-        'or @content-desc="The email format is invalid.22" ' +
-        'or contains(@text,"The email format is invalid22") ' +
+        '@text="^The email format is invalid." ' +
+        'or @content-desc="^The email format is invalid." ' +
+        'or @text="The email format is invalid." ' +
+        'or @content-desc="The email format is invalid." ' +
+        'or contains(@text,"The email format is invalid") ' +
         'or contains(@content-desc,"The email format is invalid") ' +
-        'or contains(@text,"email format is invalid22") ' +
-        'or contains(@content-desc,"email format is invalid22")' +
+        'or contains(@text,"email format is invalid") ' +
+        'or contains(@content-desc,"email format is invalid")' +
         ']',
 
     /**
