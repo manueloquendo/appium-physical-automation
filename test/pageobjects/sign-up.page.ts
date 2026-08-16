@@ -255,27 +255,6 @@ class SignUpPage {
         }
 
         await browser.pause(350);
-
-        const enteredValue =
-            await field
-                .getText()
-                .catch(() => '');
-
-        if (
-            !enteredValue ||
-            !enteredValue
-                .toLowerCase()
-                .includes(
-                    value.toLowerCase()
-                )
-        ) {
-            console.log(
-                `The ${visibleText} value could not be ` +
-                'confirmed through getText(). Continuing ' +
-                'because secure or masked fields may not ' +
-                'expose their entered value.'
-            );
-        }
     }
 
     private async hideAndroidKeyboard():
