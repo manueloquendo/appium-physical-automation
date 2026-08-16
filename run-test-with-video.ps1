@@ -3,7 +3,10 @@ param(
     [string]$SpecFile = "./test/features/authentication/blank-fields-validation.feature",
     
     [Parameter(Mandatory=$false)]
-    [string]$VideoDir = "./videos"
+    [string]$VideoDir = "./videos",
+
+    [Parameter(Mandatory=$false)]
+    [int]$AppiumStartupTimeoutSeconds = 120
 )
 
 # Create videos folder
@@ -15,6 +18,7 @@ if (-not (Test-Path $VideoDir)) {
 # Generate video filename
 $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
 $videoFile = Join-Path $VideoDir "test_$timestamp.mp4"
+$appiumLogFile = Join-Path $VideoDir "appium_$timestamp.log"
 
 Write-Host "========================================="
 Write-Host "Starting test recording..."
@@ -46,13 +50,24 @@ Start-Sleep -Seconds 3
 
 # Start Appium server
 Write-Host "[*] Starting Appium server..."
-$appiumProcess = Start-Process cmd.exe -ArgumentList '/c appium --port 4723 --relaxed-security' -PassThru -NoNewWindow
+$appiumProcess = Start-Process -FilePath "appium" -ArgumentList @("--port", "4723", "--relaxed-security") -PassThru -NoNewWindow -RedirectStandardOutput $appiumLogFile -RedirectStandardError $appiumLogFile
+Write-Host "[*] Appium log: $appiumLogFile"
 
 # Wait for Appium to be ready
-$maxAttempts = 30
+$pollIntervalSeconds = 2
+$maxAttempts = [math]::Ceiling($AppiumStartupTimeoutSeconds / $pollIntervalSeconds)
 $attempt = 0
 $appiumReady = $false
 while ($attempt -lt $maxAttempts -and -not $appiumReady) {
+    if ($appiumProcess.HasExited) {
+        Write-Error "Appium process exited early with code $($appiumProcess.ExitCode)."
+        if (Test-Path $appiumLogFile) {
+            Write-Host "--- Last Appium log lines ---"
+            Get-Content -Path $appiumLogFile -Tail 80
+        }
+        exit 1
+    }
+
     try {
         $response = Invoke-WebRequest -Uri 'http://127.0.0.1:4723/status' -UseBasicParsing -ErrorAction Stop
         if ($response.StatusCode -eq 200) {
@@ -61,13 +76,19 @@ while ($attempt -lt $maxAttempts -and -not $appiumReady) {
             break
         }
     } catch {
-        $attempt++
-        Write-Host "[*] Waiting for Appium... (attempt $attempt/$maxAttempts)"
-        Start-Sleep -Seconds 1
+        # Ignore transient status errors while Appium is still loading drivers.
     }
+
+    $attempt++
+    Write-Host "[*] Waiting for Appium... (attempt $attempt/$maxAttempts)"
+    Start-Sleep -Seconds $pollIntervalSeconds
 }
 if (-not $appiumReady) {
-    Write-Error "Appium server failed to start within 30 seconds"
+    Write-Error "Appium server failed to start within $AppiumStartupTimeoutSeconds seconds"
+    if (Test-Path $appiumLogFile) {
+        Write-Host "--- Last Appium log lines ---"
+        Get-Content -Path $appiumLogFile -Tail 80
+    }
     exit 1
 }
 

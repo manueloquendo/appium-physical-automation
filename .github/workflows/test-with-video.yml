@@ -131,7 +131,7 @@ jobs:
           }
 
           Write-Host "Running single spec with video recording: $spec"
-          & .\run-test-with-video.ps1 -SpecFile $spec -VideoDir "./videos"
+          & .\run-test-with-video.ps1 -SpecFile $spec -VideoDir "./videos" -AppiumStartupTimeoutSeconds 180
           exit $LASTEXITCODE
 
       - name: Force failure for ClickUp test
