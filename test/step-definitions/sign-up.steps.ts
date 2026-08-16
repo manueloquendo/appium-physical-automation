@@ -70,6 +70,22 @@ When(
     }
 );
 
+When(
+    'the user completes the Sign Up fields with mismatched passwords',
+    async function (): Promise<void> {
+        await SignUpPage
+            .completeRequiredFieldsWithMismatchedPasswords();
+    }
+);
+
+Then(
+    'the passwords do not match validation message should be displayed',
+    async function (): Promise<void> {
+        await SignUpPage
+            .verifyPasswordsDoNotMatchMessage();
+    }
+);
+
 Then(
     'the Privacy Policy required validation message should be displayed',
     async function (): Promise<void> {

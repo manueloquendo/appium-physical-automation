@@ -60,6 +60,22 @@ class SignUpPage {
         return $(this.locators.confirmPasswordRequired);
     }
 
+    private get passwordsDoNotMatch(): ChainablePromiseElement {
+        return $(this.locators.passwordsDoNotMatch);
+    }
+
+    private get dateOfBirthInput(): ChainablePromiseElement {
+        return $(this.locators.dateOfBirthInput);
+    }
+
+    private get dateOfBirthPicker(): ChainablePromiseElement {
+        return $(this.locators.dateOfBirthPicker);
+    }
+
+    private get dateOfBirthDoneButton(): ChainablePromiseElement {
+        return $(this.locators.dateOfBirthDoneButton);
+    }
+
     private get phoneRequired(): ChainablePromiseElement {
         return $(this.locators.phoneRequired);
     }
@@ -453,6 +469,116 @@ class SignUpPage {
 
         console.log(
             'All required Sign Up text fields were completed.'
+        );
+    }
+
+    /**
+     * Completes every required text input using a Confirm
+     * Password value that differs from the Password value.
+     */
+    public async completeRequiredFieldsWithMismatchedPasswords():
+        Promise<void> {
+        if (!browser.isAndroid) {
+            throw new Error(
+                'The mismatched-password data-entry flow ' +
+                'is currently configured for Android only.'
+            );
+        }
+
+        await this.enterBusinessName(
+            'Automation Test Business'
+        );
+
+        await this.enterContactName(
+            'Automation Tester'
+        );
+
+        await this.enterSignUpEmail(
+            `qa.mismatch.${Date.now()}@tepia.co`
+        );
+
+        await this.enterSignUpPassword(
+            'Password1!'
+        );
+
+        await this.enterConfirmPassword(
+            'Different1!'
+        );
+
+        await this.enterMobilePhone(
+            '5551234567'
+        );
+
+        await this.enterAddressOne(
+            '123 Automation Street'
+        );
+
+        await this.enterCity(
+            'Miami'
+        );
+
+        await this.enterState(
+            'Florida'
+        );
+
+        await this.enterZip(
+            '33101'
+        );
+
+        console.log(
+            'Sign Up fields were completed with ' +
+            'mismatched passwords.'
+        );
+    }
+
+    public async verifyPasswordsDoNotMatchMessage():
+        Promise<void> {
+        await this.ensureValidationDisplayed(
+            this.passwordsDoNotMatch,
+            'Passwords do not match'
+        );
+
+        await expect(
+            this.passwordsDoNotMatch
+        ).toBeDisplayed();
+    }
+
+    /**
+     * Opens the Date of Birth picker and confirms it.
+     */
+    public async selectDateOfBirth():
+        Promise<void> {
+        const field = this.dateOfBirthInput;
+
+        await field.waitForDisplayed({
+            timeout: 15_000,
+            timeoutMsg:
+                'The Date of Birth field was not displayed.',
+        });
+
+        await field.click();
+
+        await this.dateOfBirthPicker.waitForDisplayed({
+            timeout: 15_000,
+            timeoutMsg:
+                'The Date of Birth picker was not displayed.',
+        });
+
+        const doneButton =
+            this.dateOfBirthDoneButton;
+
+        await doneButton.waitForDisplayed({
+            timeout: 10_000,
+            timeoutMsg:
+                'The Date of Birth picker Done button ' +
+                'was not displayed.',
+        });
+
+        await doneButton.click();
+        await browser.pause(800);
+
+        console.log(
+            'A Date of Birth value was selected.'
         );
     }
 

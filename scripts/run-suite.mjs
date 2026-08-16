@@ -14,33 +14,51 @@ const SPECS = [
     './test/features/authentication/successful-login.feature',
 ];
 
-const platform = process.argv[2];
+const args = process.argv.slice(2);
+const generateReport = args.includes('--report');
+const platforms = args.filter((arg) => !arg.startsWith('--'));
 
-if (platform !== 'android' && platform !== 'ios') {
-    console.error('Usage: node scripts/run-suite.mjs <android|ios>');
+const isValid = platforms.length > 0 &&
+    platforms.every((p) => p === 'android' || p === 'ios');
+
+if (!isValid) {
+    console.error('Usage: node scripts/run-suite.mjs <android|ios>... [--report]');
     process.exit(2);
 }
 
-const configFile = `./config/wdio.${platform}.usb.conf.ts`;
 const failedSpecs = [];
 
-for (const spec of SPECS) {
-    console.log(`\n=== Running ${spec} on ${platform} ===`);
+for (const platform of platforms) {
+    const configFile = `./config/wdio.${platform}.usb.conf.ts`;
 
-    const result = spawnSync(
-        'npx',
-        ['wdio', 'run', configFile, '--spec', spec],
-        { stdio: 'inherit', shell: true },
-    );
+    for (const spec of SPECS) {
+        console.log(`\n=== Running ${spec} on ${platform} ===`);
 
-    if (result.status !== 0) {
-        failedSpecs.push(spec);
-        console.log(`=== FAILED: ${spec} (exit code ${result.status}) ===`);
+        const result = spawnSync(
+            'npx',
+            ['wdio', 'run', configFile, '--spec', spec],
+            { stdio: 'inherit', shell: true },
+        );
+
+        if (result.status !== 0) {
+            failedSpecs.push(`${platform}: ${spec}`);
+            console.log(`=== FAILED: ${spec} (exit code ${result.status}) ===`);
+        }
     }
 }
 
-console.log(`\n=== Suite summary (${platform}) ===`);
-console.log(`Total: ${SPECS.length}, failed: ${failedSpecs.length}`);
+console.log(`\n=== Suite summary (${platforms.join(', ')}) ===`);
+console.log(
+    `Total: ${SPECS.length * platforms.length}, failed: ${failedSpecs.length}`
+);
 failedSpecs.forEach((spec) => console.log(`  - ${spec}`));
+
+if (generateReport) {
+    spawnSync(
+        'npx',
+        ['allure', 'generate', 'reports/allure-results', '--clean', '-o', 'reports/allure-report'],
+        { stdio: 'inherit', shell: true },
+    );
+}
 
 process.exit(failedSpecs.length > 0 ? 1 : 0);

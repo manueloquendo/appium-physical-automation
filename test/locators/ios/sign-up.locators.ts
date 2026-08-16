@@ -51,6 +51,27 @@ export const signUpIOSLocators = {
         'OR label CONTAINS[c] "Confirm Passwords is required" ' +
         'OR value CONTAINS[c] "Confirm Passwords is required")',
 
+    passwordsDoNotMatch:
+        '-ios predicate string:' +
+        '(name CONTAINS[c] "Passwords do not match" ' +
+        'OR label CONTAINS[c] "Passwords do not match" ' +
+        'OR value CONTAINS[c] "Passwords do not match")',
+
+    dateOfBirthInput:
+        '-ios predicate string:' +
+        '(name CONTAINS[c] "Date of Birth" ' +
+        'OR label CONTAINS[c] "Date of Birth" ' +
+        'OR value CONTAINS[c] "Date of Birth")',
+
+    dateOfBirthPicker:
+        '-ios predicate string:' +
+        '(name CONTAINS[c] "Select Date Of Birth" ' +
+        'OR label CONTAINS[c] "Select Date Of Birth")',
+
+    dateOfBirthDoneButton:
+        '-ios predicate string:' +
+        '(name CONTAINS[c] "Done" OR label CONTAINS[c] "Done")',
+
     phoneRequired:
         '-ios predicate string:' +
         '(name CONTAINS[c] "A phone number is required" ' +

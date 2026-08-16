@@ -79,6 +79,22 @@ export const signUpAndroidLocators = {
         'android=new UiSelector()' +
         '.textContains("Confirm Passwords is required")',
 
+    passwordsDoNotMatch:
+        'android=new UiSelector()' +
+        '.textContains("Passwords do not match")',
+
+    dateOfBirthInput:
+        'android=new UiSelector()' +
+        '.textContains("Date of Birth")',
+
+    dateOfBirthPicker:
+        'android=new UiSelector()' +
+        '.textContains("Select Date Of Birth")',
+
+    dateOfBirthDoneButton:
+        'android=new UiSelector()' +
+        '.textContains("Done")',
+
     phoneRequired:
         'android=new UiSelector()' +
         '.textContains("A phone number is required")',
