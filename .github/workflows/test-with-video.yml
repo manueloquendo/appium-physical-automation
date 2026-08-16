@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       spec_file:
-        description: "Feature file path to run"
+        description: "Optional feature path; leave empty to run all 11 tests sequentially"
         required: false
-        default: "./test/features/authentication/blank-fields-validation.feature"
+        default: ""
       force_failure_for_clickup_test:
         # TEMP TEST SWITCH (1/3): set to true only to validate ClickUp bug creation.
         description: "Force an intentional failure to test ClickUp bug creation (true/false)"
