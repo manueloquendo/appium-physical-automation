@@ -118,48 +118,6 @@ jobs:
             exit 1
           }
 
-      - name: Start Appium for full Android suite
-        if: ${{ github.event.inputs.spec_file == '' }}
-        shell: powershell
-        run: |
-          $appiumLogDirectory = Join-Path $PWD "logs"
-          New-Item -ItemType Directory -Path $appiumLogDirectory -Force | Out-Null
-          $appiumStdOutLog = Join-Path $appiumLogDirectory "appium-suite.stdout.log"
-          $appiumStdErrLog = Join-Path $appiumLogDirectory "appium-suite.stderr.log"
-
-          $appiumProcess = Start-Process -FilePath "cmd.exe" -ArgumentList @("/c", "appium --port 4723 --relaxed-security") -PassThru -WindowStyle Hidden -RedirectStandardOutput $appiumStdOutLog -RedirectStandardError $appiumStdErrLog
-          "APPIUM_PID=$($appiumProcess.Id)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "APPIUM_STDOUT_LOG=$appiumStdOutLog" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "APPIUM_STDERR_LOG=$appiumStdErrLog" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-          $maxAttempts = 90
-          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
-            try {
-              $response = Invoke-WebRequest -Uri "http://127.0.0.1:4723/status" -UseBasicParsing -ErrorAction Stop
-              if ($response.StatusCode -eq 200) {
-                Write-Host "Appium server is ready."
-                exit 0
-              }
-            } catch {
-              if ($appiumProcess.HasExited) {
-                Write-Error "Appium exited before becoming ready with code $($appiumProcess.ExitCode)."
-                break
-              }
-            }
-
-            Write-Host "Waiting for Appium... (attempt $attempt/$maxAttempts)"
-            Start-Sleep -Seconds 2
-          }
-
-          if (Test-Path $appiumStdOutLog) {
-            Get-Content -Path $appiumStdOutLog -Tail 80
-          }
-          if (Test-Path $appiumStdErrLog) {
-            Get-Content -Path $appiumStdErrLog -Tail 80
-          }
-          Write-Error "Appium did not become ready within 180 seconds."
-          exit 1
-
       - name: Run Android tests in series
         shell: powershell
         run: |
@@ -167,26 +125,63 @@ jobs:
 
           if ([string]::IsNullOrWhiteSpace($spec)) {
             Write-Host "No spec provided. Running the full Android suite in sequence for a single Allure report."
-            npm run report:clean
-            npm run test:android:all
-            exit $LASTEXITCODE
+            $appiumLogDirectory = Join-Path $PWD "logs"
+            New-Item -ItemType Directory -Path $appiumLogDirectory -Force | Out-Null
+            $appiumStdOutLog = Join-Path $appiumLogDirectory "appium-suite.stdout.log"
+            $appiumStdErrLog = Join-Path $appiumLogDirectory "appium-suite.stderr.log"
+            $appiumProcess = $null
+
+            try {
+              $appiumProcess = Start-Process -FilePath "cmd.exe" -ArgumentList @("/c", "appium --port 4723 --relaxed-security") -PassThru -WindowStyle Hidden -RedirectStandardOutput $appiumStdOutLog -RedirectStandardError $appiumStdErrLog
+
+              $appiumReady = $false
+              for ($attempt = 1; $attempt -le 90; $attempt++) {
+                try {
+                  $response = Invoke-WebRequest -Uri "http://127.0.0.1:4723/status" -UseBasicParsing -ErrorAction Stop
+                  if ($response.StatusCode -eq 200) {
+                    $appiumReady = $true
+                    Write-Host "Appium server is ready."
+                    break
+                  }
+                } catch {
+                  if ($appiumProcess.HasExited) {
+                    Write-Error "Appium exited before becoming ready with code $($appiumProcess.ExitCode)."
+                    break
+                  }
+                }
+
+                Write-Host "Waiting for Appium... (attempt $attempt/90)"
+                Start-Sleep -Seconds 2
+              }
+
+              if (-not $appiumReady) {
+                if (Test-Path $appiumStdOutLog) {
+                  Get-Content -Path $appiumStdOutLog -Tail 80
+                }
+                if (Test-Path $appiumStdErrLog) {
+                  Get-Content -Path $appiumStdErrLog -Tail 80
+                }
+                throw "Appium did not become ready within 180 seconds."
+              }
+
+              npm run report:clean
+              npm run test:android:all
+              if ($LASTEXITCODE -ne 0) {
+                exit $LASTEXITCODE
+              }
+            } finally {
+              if ($null -ne $appiumProcess -and -not $appiumProcess.HasExited) {
+                Stop-Process -Id $appiumProcess.Id -Force -ErrorAction SilentlyContinue
+                Write-Host "Appium stopped."
+              }
+            }
+
+            exit 0
           }
 
           Write-Host "Running single spec with video recording: $spec"
           & .\run-test-with-video.ps1 -SpecFile $spec -VideoDir "./videos" -AppiumStartupTimeoutSeconds 180
           exit $LASTEXITCODE
-
-      - name: Stop Appium after full Android suite
-        if: ${{ always() && github.event.inputs.spec_file == '' }}
-        shell: powershell
-        run: |
-          if ($env:APPIUM_PID) {
-            $appiumProcess = Get-Process -Id ([int]$env:APPIUM_PID) -ErrorAction SilentlyContinue
-            if ($appiumProcess) {
-              Stop-Process -Id $appiumProcess.Id -Force
-              Write-Host "Appium stopped."
-            }
-          }
 
       - name: Force failure for ClickUp test
         # TEMP TEST STEP (2/3): this intentionally fails the job only when input=true.
