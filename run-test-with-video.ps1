@@ -51,7 +51,7 @@ Start-Sleep -Seconds 3
 
 # Start Appium server
 Write-Host "[*] Starting Appium server..."
-$appiumProcess = Start-Process -FilePath "appium" -ArgumentList @("--port", "4723", "--relaxed-security") -PassThru -NoNewWindow -RedirectStandardOutput $appiumStdOutLogFile -RedirectStandardError $appiumStdErrLogFile
+$appiumProcess = Start-Process -FilePath "cmd.exe" -ArgumentList @("/c", "appium --port 4723 --relaxed-security") -PassThru -NoNewWindow -RedirectStandardOutput $appiumStdOutLogFile -RedirectStandardError $appiumStdErrLogFile
 Write-Host "[*] Appium stdout log: $appiumStdOutLogFile"
 Write-Host "[*] Appium stderr log: $appiumStdErrLogFile"
 
